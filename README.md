@@ -1,0 +1,2 @@
+Collaborative Workspace
+This repository hosts the source code for the "Collaborative Workspace" project, an all-in-one platform designed to streamline team communication, task management, and file sharing in a single, integrated environment.

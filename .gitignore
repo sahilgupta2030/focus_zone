@@ -1,0 +1,121 @@
+# ======================================
+# 🔧 General
+# ======================================
+.DS_Store
+Thumbs.db
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+dist/
+build/
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ======================================
+# 🗂️ Backend specific
+# ======================================
+backend/node_modules/
+backend/dist/
+backend/.env
+backend/uploads/
+backend/coverage/
+backend/logs/
+backend/temp/
+backend/.DS_Store
+
+# Compiled output
+*.log
+*.pid
+*.seed
+*.pid.lock
+
+# Editor folders and files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# ======================================
+# 💻 Frontend specific
+# ======================================
+frontend/node_modules/
+frontend/.env
+frontend/.DS_Store
+frontend/build/
+frontend/dist/
+frontend/coverage/
+frontend/.next/
+frontend/out/
+frontend/.turbo/
+frontend/.vercel/
+
+# Cache
+frontend/.cache/
+frontend/.parcel-cache/
+frontend/.eslintcache
+frontend/.stylelintcache
+
+# ======================================
+# ⚙️ OS / IDE junk
+# ======================================
+*.swp
+*.swo
+*.tmp
+*.temp
+*.bak
+*.old
+
+# ======================================
+# 🖼️ Uploaded / Temporary files
+# ======================================
+uploads/
+tmp/
+temp/
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.mp4
+*.mp3
+*.webm
+
+# ======================================
+# 🚀 Production & Deployment
+# ======================================
+# Ignore local deployment configs and secrets
+*.env.*
+*.pem
+*.key
+*.crt
+*.csr
+*.pfx
+*.cert
+*.pem
+*.ppk
+*.zip
+*.tar
+*.gz
+
+# ======================================
+# 🧪 Testing / Coverage
+# ======================================
+coverage/
+.nyc_output/
+cypress/videos/
+cypress/screenshots/
+jest-html-reporters-*.html
+jest-results.json
+
+# ======================================
+# 🧰 Misc
+# ======================================
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+*.iml
+*.log
