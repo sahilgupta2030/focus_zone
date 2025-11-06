@@ -3,6 +3,7 @@ import dotenv from 'dotenv';
 import cors from "cors"
 import cookieParser from "cookie-parser"
 import express from "express"
+import userRoutes from "./routes/user.routes.js"
 dotenv.config();
 
 const app = express()
@@ -28,6 +29,10 @@ app.use((err, req, res, next) => {
     console.error(err.stack);
     res.status(500).json({ message: err.message || "Server Error" });
 });
+
+
+// Routes
+app.use("/api/users", userRoutes);
 
 const PORT = process.env.PORT || 5001;
 
