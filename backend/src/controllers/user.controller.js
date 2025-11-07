@@ -9,7 +9,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 // Genetrating Token
 const JWT_SECRET = process.env.JWT_SECRET;
 const generateToken = (userId) => {
-    return jwt.sign({ id: userId }, process.env.JWT_SECRET, {
+    return jwt.sign({ id: userId }, JWT_SECRET || process.env.JWT_SECRET, {
         expiresIn: "6d",
     });
 };
