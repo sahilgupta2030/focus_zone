@@ -3,7 +3,12 @@ import dotenv from 'dotenv';
 import cors from "cors"
 import cookieParser from "cookie-parser"
 import express from "express"
+
+// Import Routes
 import userRoutes from "./routes/user.routes.js"
+import workspaceRoutes from "./routes/workspace.routes.js"
+import boardRoutes from "./routes/board.routes.js"
+
 dotenv.config();
 
 const app = express()
@@ -33,6 +38,8 @@ app.use((err, req, res, next) => {
 
 // Routes
 app.use("/api/users", userRoutes);
+app.use("/api/workspaces", workspaceRoutes);
+app.use("/api/boards", boardRoutes)
 
 const PORT = process.env.PORT || 5001;
 

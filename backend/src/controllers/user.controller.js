@@ -29,6 +29,9 @@ const registerUser = asyncHandler(async (req, res) => {
         throw new ApiError(402, "User already exists with this email")
     }
 
+    // Check if this is the first user
+    const isFirstUser = (await User.countDocuments()) === 0;
+
     // Upload Avatar
     let avatarUrl = ""
     if (req?.file) {
@@ -42,6 +45,7 @@ const registerUser = asyncHandler(async (req, res) => {
         email,
         password,
         avatar: avatarUrl,
+        role: isFirstUser ? "owner" : "member" // first user = owner
     })
 
     // Generating access token
