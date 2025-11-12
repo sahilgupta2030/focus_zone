@@ -1,24 +1,32 @@
 import multer from "multer";
 import path from "path";
+import fs from "fs";
 
-// Temporary storage in memory or disk (before Cloudinary upload)
+const uploadDir = path.resolve("src/uploads");
+
+// ✅ Ensure uploads folder exists
+if (!fs.existsSync(uploadDir)) {
+    fs.mkdirSync(uploadDir, { recursive: true });
+    console.log(`Created upload directory: ${uploadDir}`);
+}
+
 const storage = multer.diskStorage({
     destination: (req, file, cb) => {
-        cb(null, "uploads/"); // temp folder before Cloudinary
+        cb(null, uploadDir);
     },
     filename: (req, file, cb) => {
         const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-        cb(null, uniqueSuffix + path.extname(file.originalname));
+        const ext = path.extname(file.originalname); // ✅ Keep original extension
+        cb(null, `${uniqueSuffix}${ext}`);
     },
 });
 
 const fileFilter = (req, file, cb) => {
     const allowed = ["image/jpeg", "image/png", "image/webp"];
     if (!allowed.includes(file.mimetype)) {
-        cb(new Error("Only .jpeg, .png, .webp formats are allowed!"), false);
-    } else {
-        cb(null, true);
+        return cb(new Error("Only .jpeg, .png, and .webp formats are allowed!"), false);
     }
+    cb(null, true);
 };
 
 export const upload = multer({ storage, fileFilter });

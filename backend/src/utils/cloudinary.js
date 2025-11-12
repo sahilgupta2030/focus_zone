@@ -1,5 +1,8 @@
+import dotenv from "dotenv";
+dotenv.config();
 import { v2 as cloudinary } from "cloudinary";
 import fs from "fs";
+import path from "path";
 import { ApiError } from "./apiError.js";
 
 cloudinary.config({
@@ -8,20 +11,25 @@ cloudinary.config({
     api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-const uploadOnCloudinary = async (localFilePath) => {
+export const uploadOnCloudinary = async (localFilePath) => {
     try {
-        if (!localFilePath) return null;
+        if (!localFilePath) throw new ApiError(400, "No file path provided for Cloudinary upload");
 
-        const response = await cloudinary.uploader.upload(localFilePath, {
+        // ✅ Ensure absolute path
+        const fullPath = path.resolve(localFilePath);
+        console.log("Uploading to Cloudinary from:", fullPath);
+
+        const response = await cloudinary.uploader.upload(fullPath, {
             resource_type: "auto",
         });
 
-        if (fs.existsSync(localFilePath)) fs.unlinkSync(localFilePath);
+        // ✅ Delete temp file after successful upload
+        if (fs.existsSync(fullPath)) fs.unlinkSync(fullPath);
+
         return response;
     } catch (error) {
+        // ✅ Delete file if upload fails
         if (fs.existsSync(localFilePath)) fs.unlinkSync(localFilePath);
         throw new ApiError(500, "Cloudinary upload failed", [error.message]);
     }
 };
-
-export { uploadOnCloudinary };

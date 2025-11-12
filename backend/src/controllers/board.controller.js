@@ -23,8 +23,11 @@ const createBoard = asyncHandler(async (req, res) => {
     if (!workspace) throw new ApiError(404, "Workspace not found");
 
     const userInWorkspace = workspace.members.find(
-        (member) => String(member.user) === String(userId)
+        (member) =>
+            member.user?.toString() === userId.toString() ||
+            member.user?._id?.toString() === userId.toString()
     );
+
     if (!userInWorkspace) throw new ApiError(403, "You are not a member of this workspace");
 
     if (!["admin", "owner"].includes(userInWorkspace.role)) {
@@ -32,11 +35,11 @@ const createBoard = asyncHandler(async (req, res) => {
     }
 
     const board = await Board.create({
-        title,
-        workspace: workspaceId,
-        columns: [{ name: "To Do" }],
-        members: []
-    });
+    title,
+    workspace: workspaceId, // maps correctly
+    members: [userId],
+    columns: [{ name: "To Do", tasks: [] }],
+});
 
     const populated = await Board.findById(board._id)
         .populate("members", "name email")
@@ -63,7 +66,9 @@ const getBoardsByWorkspace = asyncHandler(async (req, res) => {
     if (!workspace) throw new ApiError(404, "Workspace not found");
 
     const userInWorkspace = workspace.members.find(
-        (member) => String(member.user) === String(userId)
+        (member) =>
+            member.user?.toString() === userId.toString() ||
+            member.user?._id?.toString() === userId.toString()
     );
     if (!userInWorkspace) throw new ApiError(403, "You are not a member of this workspace");
 
@@ -103,7 +108,9 @@ const getBoardById = asyncHandler(async (req, res) => {
     if (!workspace) throw new ApiError(404, "Workspace not found or deleted");
 
     const userInWorkspace = workspace.members.find(
-        (member) => String(member.user) === String(userId)
+        (member) =>
+            member.user?.toString() === userId.toString() ||
+            member.user?._id?.toString() === userId.toString()
     );
     if (!userInWorkspace) throw new ApiError(403, "You are not a member of this workspace");
 
@@ -135,7 +142,9 @@ const getBoardMember = asyncHandler(async (req, res) => {
     if (!workspace) throw new ApiError(404, "Workspace not found or deleted");
 
     const userInWorkspace = workspace.members.find(
-        (member) => String(member.user) === String(userId)
+        (member) =>
+            member.user?.toString() === userId.toString() ||
+            member.user?._id?.toString() === userId.toString()
     );
     if (!userInWorkspace) throw new ApiError(403, "You are not a member of this workspace");
 
@@ -195,7 +204,9 @@ const updateBoard = asyncHandler(async (req, res) => {
     if (!workspace) throw new ApiError(404, "Workspace not found or deleted");
 
     const userInWorkspace = workspace.members.find(
-        (member) => String(member.user) === String(userId)
+        (member) =>
+            member.user?.toString() === userId.toString() ||
+            member.user?._id?.toString() === userId.toString()
     );
     if (!userInWorkspace) throw new ApiError(403, "You are not a member of this workspace");
 
@@ -242,7 +253,9 @@ const deleteBoard = asyncHandler(async (req, res) => {
     if (!workspace) throw new ApiError(404, "Workspace not found or deleted");
 
     const userInWorkspace = workspace.members.find(
-        (member) => String(member.user) === String(userId)
+        (member) =>
+            member.user?.toString() === userId.toString() ||
+            member.user?._id?.toString() === userId.toString()
     );
     if (!userInWorkspace) throw new ApiError(403, "You are not a member of this workspace");
 
@@ -278,7 +291,13 @@ const addMemberToBoard = asyncHandler(async (req, res) => {
     if (!workspace) throw new ApiError(404, "Workspace not found or deleted");
 
     const currentUser = workspace.members.find(
-        (member) => String(member.user) === String(userId)
+        (member) => {
+        const memberId =
+            typeof member.user === "object"
+                ? member.user?._id?.toString()
+                : member.user?.toString();
+        return memberId === userId.toString();
+    }
     );
     if (!currentUser) throw new ApiError(403, "You are not a member of this workspace");
 
@@ -287,7 +306,9 @@ const addMemberToBoard = asyncHandler(async (req, res) => {
     }
 
     const memberInWorkspace = workspace.members.find(
-        (member) => String(member.user) === String(memberId)
+        (member) =>
+            member.user?.toString() === userId.toString() ||
+            member.user?._id?.toString() === userId.toString()
     );
     if (!memberInWorkspace) throw new ApiError(400, "User is not part of this workspace");
 
@@ -329,7 +350,13 @@ const removeMemberFromBoard = asyncHandler(async (req, res) => {
     if (!workspace) throw new ApiError(404, "Workspace not found or deleted");
 
     const currentUser = workspace.members.find(
-        (m) => String(m.user) === String(userId)
+        (member) => {
+        const memberId =
+            typeof member.user === "object"
+                ? member.user?._id?.toString()
+                : member.user?.toString();
+        return memberId === userId.toString();
+    }
     );
     if (!currentUser) throw new ApiError(403, "You are not a member of this workspace");
 
@@ -338,7 +365,9 @@ const removeMemberFromBoard = asyncHandler(async (req, res) => {
     }
 
     const memberInWorkspace = workspace.members.find(
-        (m) => String(m.user) === String(memberId)
+        (member) =>
+            member.user?.toString() === userId.toString() ||
+            member.user?._id?.toString() === userId.toString()
     );
     if (!memberInWorkspace) throw new ApiError(400, "User is not part of this workspace");
 

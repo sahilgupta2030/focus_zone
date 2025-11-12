@@ -22,7 +22,7 @@ router.post("/", createBoard);
 router.get("/workspace/:workspaceId", getBoardsByWorkspace);
 router.get("/:boardId", getBoardById);
 router.get("/:boardId/members", getBoardMember);
-router.get("/getAllBoard", getAllBoard);
+router.get("/", getAllBoard);
 router.put("/:boardId", updateBoard);
 router.delete("/:boardId", deleteBoard);
 router.post("/:boardId/add-member", addMemberToBoard);
