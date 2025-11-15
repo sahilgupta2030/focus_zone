@@ -14,10 +14,15 @@ const listSchema = new mongoose.Schema({
         ref: "Board", 
         required: true 
     },
-    tasks: [
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+        required: true
+    },
+    cards: [
         { 
             type: mongoose.Schema.Types.ObjectId, 
-            ref: "Task" 
+            ref: "Card" 
         }
     ]
 }, { timestamps: true });

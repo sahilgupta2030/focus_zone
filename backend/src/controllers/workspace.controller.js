@@ -395,7 +395,7 @@ const restoreWorkspace = asyncHandler(async (req, res) => {
     const { workspaceId } = req.params;
     const userId = req.user?._id;
 
-    // 1️⃣ Find workspace including deleted ones
+    // Find workspace including deleted ones
     const workspace = await Workspace.findById(workspaceId);
     if (!workspace) {
         throw new ApiError(404, "Workspace not found");

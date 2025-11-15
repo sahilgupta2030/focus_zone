@@ -8,6 +8,7 @@ import express from "express"
 import userRoutes from "./routes/user.routes.js"
 import workspaceRoutes from "./routes/workspace.routes.js"
 import boardRoutes from "./routes/board.routes.js"
+import listRoutes from "./routes/list.routes.js"
 
 dotenv.config();
 
@@ -40,6 +41,7 @@ app.use((err, req, res, next) => {
 app.use("/api/users", userRoutes);
 app.use("/api/workspaces", workspaceRoutes);
 app.use("/api/boards", boardRoutes)
+app.use("/api/lists" , listRoutes)
 
 const PORT = process.env.PORT || 5001;
 

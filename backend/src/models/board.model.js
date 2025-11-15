@@ -11,18 +11,6 @@ const boardSchema = new mongoose.Schema({
         ref: "Workspace",
         required: true
     },
-    columns: [
-        {
-            name: {
-                type: String,
-                required: true
-            },
-            tasks: [{
-                type: mongoose.Schema.Types.ObjectId,
-                ref: "Task"
-            }],
-        },
-    ],
     members: [
         {
             type: mongoose.Schema.Types.ObjectId,

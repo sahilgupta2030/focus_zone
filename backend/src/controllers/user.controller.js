@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
-import fs from "fs";
+// import fs from "fs";
 import { User } from "../models/user.model.js";
 import bcrypt from "bcrypt";
 import jwt from "jsonwebtoken";
@@ -282,6 +282,10 @@ const uploadAvatar = asyncHandler(async (req, res) => {
     if (!req.file?.path) {
         throw new ApiError(400, "No file uploaded");
     }
+
+    // // Debug logs
+    // console.log("File exists:", fs.existsSync(req.file.path));
+    // console.log("File path:", req.file.path);
 
     const uploaded = await uploadOnCloudinary(req.file.path);
     if (!uploaded?.url) {
