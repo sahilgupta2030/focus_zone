@@ -187,7 +187,7 @@ const getAllBoard = asyncHandler(async (req, res) => {
 const updateBoard = asyncHandler(async (req, res) => {
     const userId = req.user?._id;
     const { boardId } = req.params;
-    const { title, columns } = req.body;
+    const { title } = req.body;
 
     if (!userId) throw new ApiError(401, "Unauthorized: user not found");
     if (!boardId) throw new ApiError(400, "Board ID is required");
@@ -216,14 +216,6 @@ const updateBoard = asyncHandler(async (req, res) => {
 
     const updatedData = {};
     if (title) updatedData.title = title;
-    if (columns !== undefined) {
-        if (!Array.isArray(columns)) throw new ApiError(400, "columns must be an array");
-        // basic validation of column shape
-        for (const c of columns) {
-            if (!c || typeof c.name !== "string") throw new ApiError(400, "Each column must have a name string");
-        }
-        updatedData.columns = columns;
-    }
 
     const updatedBoard = await Board.findByIdAndUpdate(boardId, updatedData, { new: true })
         .populate("members", "name email")

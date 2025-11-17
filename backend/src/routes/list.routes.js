@@ -5,10 +5,10 @@ import {
     getListById,
     updateList,
     deleteList,
-    moveList,
-    addTaskToList,
-    removeTaskFromList,
-    reorderTasksInsideList
+    toggleListStatus,
+    moveListToAnotherBoard,
+    clearCard,
+    reOrderList
 } from "../controllers/list.controller.js";
 
 import { verifyJWT } from "../middleware/verifyJWT.middleware.js";
@@ -18,31 +18,31 @@ const router = express.Router();
 // all routes are protected
 router.use(verifyJWT);
 
-// Create a new list
-router.post("/", createList);
+// Create a new list inside a board
+router.post("/:boardId", createList);
 
-// Get all lists of a board
+// Get all lists for a board
 router.get("/board/:boardId", getListsByBoard);
 
 // Get a single list by ID
 router.get("/:listId", getListById);
 
-// Update a list
+// Update a list (title or position)
 router.put("/:listId", updateList);
 
-// Delete a list
+// Delete a list (Admin/Owner only)
 router.delete("/:listId", deleteList);
 
-// Move a list (change position or board)
-router.put("/:listId/move", moveList);
+// Archive / Unarchive / Activate / Deactivate list
+router.patch("/status/:listId", toggleListStatus);
 
-// Add a task/card to a list
-router.post("/:listId/tasks", addTaskToList);
+// Move list to another board (Admin/Owner only)
+router.patch("/move/:listId", moveListToAnotherBoard);
 
-// Remove a task/card from a list
-router.delete("/:listId/tasks/:taskId", removeTaskFromList);
+// Clear list (delete all cards inside)
+router.delete("/clear/:listId", clearCard);
 
-// Reorder tasks inside the same list
-router.put("/:listId/tasks/reorder", reorderTasksInsideList);
+// Reorder lists in a board (drag & drop)
+router.patch("/reorder/:boardId", reOrderList);
 
 export default router;

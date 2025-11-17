@@ -109,41 +109,47 @@ const createList = asyncHandler(async (req, res) => {
 
         const count = await List.countDocuments({ board: boardId }).session(session);
 
-        // compute insertion position
-        const finalPosition = (position !== undefined && position !== null) ? Math.min(position, count) : count;
+        const finalPosition =
+            position !== undefined && position !== null
+                ? Math.min(position, count)
+                : count;
 
-        // shift lists at/after finalPosition up by 1
         await List.updateMany(
             { board: boardId, position: { $gte: finalPosition } },
             { $inc: { position: 1 } },
             { session }
         );
 
-        // create the list
-        const createdArr = await List.create([{
-            title: title.trim(),
-            position: finalPosition,
-            board: boardId,
-            createdBy: userId
-        }], { session });
+        const createdArr = await List.create(
+            [{
+                title: title.trim(),
+                position: finalPosition,
+                board: boardId,
+                createdBy: userId
+            }],
+            { session }
+        );
 
         await session.commitTransaction();
         session.endSession();
 
-        // createdArr is an array with the created doc
         const created = createdArr[0];
 
-        // optionally populate tasks (small array) when returning
-        const populated = await List.findById(created._id).populate({ path: "tasks", options: { sort: { position: 1 } } });
+        const populated = await List.findById(created._id)
+            .populate({ path: "cards", options: { sort: { position: 1 } } });
 
-        return res
-            .status(201)
-            .json(new ApiResponse(201, populated, "List created successfully"));
+        return res.status(201).json(
+            new ApiResponse(201, populated, "List created successfully")
+        );
+
     } catch (err) {
-        await session.abortTransaction();
+        if (session.inTransaction()) {
+            await session.abortTransaction();
+        }
         session.endSession();
         throw err;
     }
+
 });
 
 // Get all lists for a board
@@ -168,7 +174,7 @@ const getListsByBoard = asyncHandler(async (req, res) => {
 
     // Fetch lists sorted by position
     const lists = await List.find({ board: boardId })
-        .populate({ path: "tasks", model: "Card", options: { sort: { position: 1 } } })
+        .populate({ path: "cards", model: "Card", options: { sort: { position: 1 } } })
         .sort({ position: 1 });
 
     return res
@@ -187,7 +193,7 @@ const getListById = asyncHandler(async (req, res) => {
     // Find the list first
     const list = await List.findById(listId)
         .populate({
-            path: "tasks",
+            path: "cards",
             model: "Card",
             options: { sort: { position: 1 } }
         });
@@ -300,13 +306,15 @@ const updateList = asyncHandler(async (req, res) => {
             session.endSession();
 
             const updated = await List.findById(listId)
-                .populate("tasks");
+                .populate("cards");
 
             return res
                 .status(200)
                 .json(new ApiResponse(200, updated, "List updated successfully"));
         } catch (err) {
-            await session.abortTransaction();
+            if (session.inTransaction()) {
+                await session.abortTransaction();
+            }
             session.endSession();
             throw err;
         }
@@ -385,9 +393,11 @@ const deleteList = asyncHandler(async (req, res) => {
             .status(200)
             .json(new ApiResponse(200, null, "List deleted successfully"));
     } catch (error) {
-        await session.abortTransaction();
+        if (session.inTransaction()) {
+            await session.abortTransaction();
+        }
         session.endSession();
-        throw error;
+        throw err;
     }
 });
 
@@ -415,6 +425,11 @@ const toggleListStatus = asyncHandler(async (req, res) => {
     // 2. Load board & workspace
     const { board, workspace } = await getBoardAndWorkspace(list.board);
 
+    // FIX: Ensure list actually belongs to the board
+    if (String(list.board) !== String(board._id)) {
+        throw new ApiError(400, "List does not belong to this board");
+    }
+
     // 3. Only list creator OR workspace admin/owner can toggle status
     if (!isListCreatorOrAdmin(list, workspace, userId)) {
         throw new ApiError(403, "You are not allowed to modify this list");
@@ -429,11 +444,13 @@ const toggleListStatus = asyncHandler(async (req, res) => {
         case "archive":
             if (list.isArchived) throw new ApiError(400, "List is already archived");
             updatedStatus = { isArchived: true };
+            updatedStatus.isActive = false; // ← FIX: archived lists are not active
             break;
 
         case "unarchive":
             if (!list.isArchived) throw new ApiError(400, "List is not archived");
             updatedStatus = { isArchived: false };
+            updatedStatus.isActive = true; // ← FIX: unarchived lists become active
             break;
 
         case "deactivate":
@@ -462,7 +479,7 @@ const toggleListStatus = asyncHandler(async (req, res) => {
                 activityLog: {
                     action: `list_${action}`,
                     listId,
-                    listName: list.name,
+                    listName: list.title, // ← FIXED: changed from list.name
                     boardId: board._id,
                     userId,
                     timestamp: new Date(),
@@ -471,9 +488,17 @@ const toggleListStatus = asyncHandler(async (req, res) => {
         }
     );
 
-    return res
-        .status(200)
-        .json(new ApiResponse(200, updatedList, `List ${action}d successfully`));
+    // FIX: Proper success message mapping
+    const message =
+        action === "archive"
+            ? "List archived successfully"
+            : action === "unarchive"
+            ? "List unarchived successfully"
+            : action === "activate"
+            ? "List activated successfully"
+            : "List deactivated successfully";
+
+    return res.status(200).json(new ApiResponse(200, updatedList, message));
 });
 
 // Move list to another board
@@ -546,7 +571,7 @@ const moveListToAnotherBoard = asyncHandler(async (req, res) => {
 });
 
 // Clear list (delete all cards inside a list)
-const clearList = asyncHandler(async (req, res) => {
+const clearCard = asyncHandler(async (req, res) => {
     const userId = req.user?._id;
     if (!userId) throw new ApiError(401, "Unauthorized");
 
@@ -667,6 +692,6 @@ export {
     deleteList,
     toggleListStatus,
     moveListToAnotherBoard,
-    clearList,
+    clearCard,
     reOrderList
 };
