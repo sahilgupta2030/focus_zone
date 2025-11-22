@@ -6,6 +6,7 @@ import { Workspace } from "../models/workspace.model.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { logActivity } from "../controllers/activityLog.controller.js";
 
 /*
 Helper functions (exact positions in file):
@@ -87,7 +88,7 @@ const findCardById = async (cardId) => {
     validateObjectIds({ cardId });
     const card = await Card.findById(cardId)
         .populate("createdBy", "name _id avatar")
-        .populate("assignedTo", "name _id avatar")
+        .populate("assignedTo", "name _id avatar");
     if (!card) throw new ApiError(404, "Card not found");
     return card;
 };
@@ -140,6 +141,17 @@ const createCard = asyncHandler(async (req, res) => {
 
     // push card id into list.cards (best-effort)
     await List.findByIdAndUpdate(listId, { $push: { cards: newCard._id } });
+
+    // LOG ACTIVITY — CARD_CREATED
+    await logActivity({
+        user: userId,
+        workspace: workspace._id,
+        board: board._id,
+        action: "CARD_CREATED",
+        targetType: "card",
+        targetId: newCard._id,
+        details: `Card '${newCard.title}' created in list '${listDoc.name}'`
+    });
 
     return res.status(201).json(new ApiResponse(201, newCard, "Card created successfully"));
 });
@@ -209,6 +221,18 @@ const updateCard = asyncHandler(async (req, res) => {
     });
 
     await card.save();
+
+    // LOG ACTIVITY — CARD_UPDATED
+    await logActivity({
+        user: userId,
+        workspace: workspace._id,
+        board: board._id,
+        action: "CARD_UPDATED",
+        targetType: "card",
+        targetId: card._id,
+        details: `Card '${card.title}' updated`
+    });
+
     return res.status(200).json(new ApiResponse(200, card, "Card updated"));
 });
 
@@ -228,6 +252,18 @@ const deleteCard = asyncHandler(async (req, res) => {
     await List.findByIdAndUpdate(card.list, { $pull: { cards: card._id } });
 
     await card.deleteOne();
+
+    // LOG ACTIVITY — CARD_DELETED
+    await logActivity({
+        user: userId,
+        workspace: workspace._id,
+        board: board._id,
+        action: "CARD_DELETED",
+        targetType: "card",
+        targetId: card._id,
+        details: `Card '${card.title}' deleted`
+    });
+
     return res.status(200).json(new ApiResponse(200, {}, "Card deleted permanently"));
 });
 
@@ -245,6 +281,18 @@ const archiveCard = asyncHandler(async (req, res) => {
 
     card.isArchived = true;
     await card.save();
+
+    // LOG ACTIVITY — CARD_ARCHIVED
+    await logActivity({
+        user: userId,
+        workspace: workspace._id,
+        board: board._id,
+        action: "CARD_ARCHIVED",
+        targetType: "card",
+        targetId: card._id,
+        details: `Card '${card.title}' archived`
+    });
+
     return res.status(200).json(new ApiResponse(200, card, "Card archived"));
 });
 
@@ -262,6 +310,18 @@ const restoreCard = asyncHandler(async (req, res) => {
 
     card.isArchived = false;
     await card.save();
+
+    // LOG ACTIVITY — CARD_RESTORED
+    await logActivity({
+        user: userId,
+        workspace: workspace._id,
+        board: board._id,
+        action: "CARD_RESTORED",
+        targetType: "card",
+        targetId: card._id,
+        details: `Card '${card.title}' restored`
+    });
+
     return res.status(200).json(new ApiResponse(200, card, "Card restored"));
 });
 
@@ -293,8 +353,21 @@ const moveCardWithinList = asyncHandler(async (req, res) => {
         );
     }
 
+    const oldPosition = card.position;
     card.position = newPosition;
     await card.save();
+
+    // LOG ACTIVITY — CARD_MOVED (within list)
+    await logActivity({
+        user: userId,
+        workspace: workspace._id,
+        board: board._id,
+        action: "CARD_MOVED",
+        targetType: "card",
+        targetId: card._id,
+        details: `Card '${card.title}' moved within list ${card.list} from ${oldPosition} to ${newPosition}`
+    });
+
     return res.status(200).json(new ApiResponse(200, card, "Card moved within list"));
 });
 
@@ -333,6 +406,17 @@ const moveCardToAnotherList = asyncHandler(async (req, res) => {
     // push into targetList.cards
     await List.findByIdAndUpdate(targetListId, { $push: { cards: card._id } });
 
+    // LOG ACTIVITY — CARD_MOVED (between lists)
+    await logActivity({
+        user: userId,
+        workspace: workspace._id,
+        board: board._id,
+        action: "CARD_MOVED",
+        targetType: "card",
+        targetId: card._id,
+        details: `Card '${card.title}' moved from list ${oldListId} to ${targetListId} at position ${newPos}`
+    });
+
     return res.status(200).json(new ApiResponse(200, card, "Card moved to another list"));
 });
 
@@ -356,6 +440,17 @@ const assignCard = asyncHandler(async (req, res) => {
     if (!card.assignedTo.some((id) => String(id) === String(assigneeId))) {
         card.assignedTo.push(assigneeId);
         await card.save();
+
+        // LOG ACTIVITY — CARD_ASSIGNED
+        await logActivity({
+            user: userId,
+            workspace: workspace._id,
+            board: board._id,
+            action: "CARD_ASSIGNED",
+            targetType: "card",
+            targetId: card._id,
+            details: `User ${assigneeId} assigned to card '${card.title}'`
+        });
     }
     return res.status(200).json(new ApiResponse(200, card, "User assigned to card"));
 });
@@ -373,11 +468,25 @@ const unassignCard = asyncHandler(async (req, res) => {
     const { board, workspace } = await getBoardAndWorkspace(card.board);
     checkBoardAccess(board, workspace, userId);
 
+    const existed = card.assignedTo.some((id) => String(id) === String(assigneeId));
     card.assignedTo = card.assignedTo.filter(
-        (user) => String(user._id) !== String(assigneeId)
+        (user) => String(user._id || user) !== String(assigneeId)
     );
 
     await card.save();
+
+    if (existed) {
+        // LOG ACTIVITY — CARD_UNASSIGNED
+        await logActivity({
+            user: userId,
+            workspace: workspace._id,
+            board: board._id,
+            action: "CARD_UNASSIGNED",
+            targetType: "card",
+            targetId: card._id,
+            details: `User ${assigneeId} unassigned from card '${card.title}'`
+        });
+    }
 
     return res.status(200).json(
         new ApiResponse(200, card, "User unassigned from card")
@@ -397,8 +506,21 @@ const updateCardStatus = asyncHandler(async (req, res) => {
     // allow any board member to update status
     checkBoardAccess(board, workspace, userId);
 
+    const oldStatus = card.status;
     card.status = status;
     await card.save();
+
+    // LOG ACTIVITY — CARD_STATUS_UPDATED
+    await logActivity({
+        user: userId,
+        workspace: workspace._id,
+        board: board._id,
+        action: "CARD_STATUS_UPDATED",
+        targetType: "card",
+        targetId: card._id,
+        details: `Status changed from '${oldStatus}' to '${status}' for card '${card.title}'`
+    });
+
     return res.status(200).json(new ApiResponse(200, card, "Card status updated"));
 });
 
@@ -416,6 +538,18 @@ const updateCardLabels = asyncHandler(async (req, res) => {
 
     card.labels = labels;
     await card.save();
+
+    // LOG ACTIVITY — CARD_LABELS_UPDATED
+    await logActivity({
+        user: userId,
+        workspace: workspace._id,
+        board: board._id,
+        action: "CARD_LABELS_UPDATED",
+        targetType: "card",
+        targetId: card._id,
+        details: `Labels updated for card '${card.title}'`
+    });
+
     return res.status(200).json(new ApiResponse(200, card, "Card labels updated"));
 });
 
@@ -433,6 +567,17 @@ const addAttachment = asyncHandler(async (req, res) => {
     if (!card.attachments.some((id) => String(id) === String(mediaId))) {
         card.attachments.push(mediaId);
         await card.save();
+
+        // LOG ACTIVITY — ATTACHMENT_ADDED
+        await logActivity({
+            user: userId,
+            workspace: workspace._id,
+            board: board._id,
+            action: "ATTACHMENT_ADDED",
+            targetType: "card",
+            targetId: card._id,
+            details: `Attachment ${mediaId} added to card '${card.title}'`
+        });
     }
     return res.status(200).json(new ApiResponse(200, card, "Attachment added to card"));
 });
@@ -448,8 +593,23 @@ const removeAttachment = asyncHandler(async (req, res) => {
     const { board, workspace } = await getBoardAndWorkspace(card.board);
     checkBoardAccess(board, workspace, userId);
 
+    const existed = card.attachments.some((id) => String(id) === String(mediaId));
     card.attachments = card.attachments.filter((id) => String(id) !== String(mediaId));
     await card.save();
+
+    if (existed) {
+        // LOG ACTIVITY — ATTACHMENT_REMOVED
+        await logActivity({
+            user: userId,
+            workspace: workspace._id,
+            board: board._id,
+            action: "ATTACHMENT_REMOVED",
+            targetType: "card",
+            targetId: card._id,
+            details: `Attachment ${mediaId} removed from card '${card.title}'`
+        });
+    }
+
     return res.status(200).json(new ApiResponse(200, card, "Attachment removed"));
 });
 
@@ -466,6 +626,18 @@ const addComment = asyncHandler(async (req, res) => {
 
     card.comments.push(messageId);
     await card.save();
+
+    // LOG ACTIVITY — COMMENT_ADDED
+    await logActivity({
+        user: userId,
+        workspace: workspace._id,
+        board: board._id,
+        action: "COMMENT_ADDED",
+        targetType: "message",
+        targetId: messageId,
+        details: `Comment ${messageId} added to card '${card.title}'`
+    });
+
     return res.status(201).json(new ApiResponse(201, card, "Comment added"));
 });
 
@@ -482,8 +654,23 @@ const deleteComment = asyncHandler(async (req, res) => {
     // so assume the message deletion endpoint will enforce author check. Here we only remove ref.
     checkBoardAccess(board, workspace, userId);
 
+    const existed = card.comments.some((id) => String(id) === String(messageId));
     card.comments = card.comments.filter((id) => String(id) !== String(messageId));
     await card.save();
+
+    if (existed) {
+        // LOG ACTIVITY — COMMENT_DELETED
+        await logActivity({
+            user: userId,
+            workspace: workspace._id,
+            board: board._id,
+            action: "COMMENT_DELETED",
+            targetType: "message",
+            targetId: messageId,
+            details: `Comment ${messageId} removed from card '${card.title}'`
+        });
+    }
+
     return res.status(200).json(new ApiResponse(200, card, "Comment removed"));
 });
 
@@ -499,8 +686,23 @@ const addChecklistItem = asyncHandler(async (req, res) => {
     const { board, workspace } = await getBoardAndWorkspace(card.board);
     checkBoardAccess(board, workspace, userId);
 
-    card.checklist.push({ text, completed: false });
+    const newItem = { text, completed: false };
+    card.checklist.push(newItem);
     await card.save();
+
+    const addedItem = card.checklist[card.checklist.length - 1];
+
+    // LOG ACTIVITY — CHECKLIST_ITEM_ADDED
+    await logActivity({
+        user: userId,
+        workspace: workspace._id,
+        board: board._id,
+        action: "CHECKLIST_ITEM_ADDED",
+        targetType: "card",
+        targetId: card._id,
+        details: `Checklist item '${text}' added to card '${card.title}' (itemId: ${addedItem._id})`
+    });
+
     return res.status(201).json(new ApiResponse(201, card, "Checklist item added"));
 });
 
@@ -520,6 +722,18 @@ const toggleChecklistItem = asyncHandler(async (req, res) => {
     item.completed = !item.completed;
     item.updatedAt = Date.now();
     await card.save();
+
+    // LOG ACTIVITY — CHECKLIST_ITEM_TOGGLED
+    await logActivity({
+        user: userId,
+        workspace: workspace._id,
+        board: board._id,
+        action: "CHECKLIST_ITEM_TOGGLED",
+        targetType: "card",
+        targetId: card._id,
+        details: `Checklist item ${checklistItemId} toggled to ${item.completed} on card '${card.title}'`
+    });
+
     return res.status(200).json(new ApiResponse(200, card, "Checklist item toggled"));
 });
 
@@ -534,14 +748,28 @@ const deleteChecklistItem = asyncHandler(async (req, res) => {
     const { board, workspace } = await getBoardAndWorkspace(card.board);
     checkBoardAccess(board, workspace, userId);
 
+    const existed = card.checklist.some((item) => String(item._id) === String(checklistItemId));
     card.checklist = card.checklist.filter(
         (item) => String(item._id) !== String(checklistItemId)
     );
 
     await card.save();
+
+    if (existed) {
+        // LOG ACTIVITY — CHECKLIST_ITEM_DELETED
+        await logActivity({
+            user: userId,
+            workspace: workspace._id,
+            board: board._id,
+            action: "CHECKLIST_ITEM_DELETED",
+            targetType: "card",
+            targetId: card._id,
+            details: `Checklist item ${checklistItemId} deleted from card '${card.title}'`
+        });
+    }
+
     return res.status(200).json(new ApiResponse(200, card, "Checklist item deleted"));
 });
-
 
 // Search cards by title, label, or assigned user
 const searchCards = asyncHandler(async (req, res) => {

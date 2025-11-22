@@ -3,30 +3,35 @@ import mongoose from 'mongoose';
 const activityLogSchema = new mongoose.Schema({
     user: { 
         type: mongoose.Schema.Types.ObjectId, 
-        ref: "User" 
+        ref: "User",
+        required: true
     },
     workspace: { 
         type: mongoose.Schema.Types.ObjectId, 
-        ref: "Workspace" 
+        ref: "Workspace",
+        required: true
     },
     board: { 
         type: mongoose.Schema.Types.ObjectId, 
-        ref: "Board" 
+        ref: "Board",
+        default: null
     },
-    action: { // e.g. "moved task", "uploaded file"
+    action: { 
         type: String, 
         required: true 
     }, 
     targetType: { 
         type: String, 
-        enum: ["task", "list", "board", "message"], 
+        enum: ["workspace", "board", "list", "card", "message", "user"],
         required: true 
     },
     targetId: { 
-        type: mongoose.Schema.Types.ObjectId 
+        type: mongoose.Schema.Types.ObjectId,
+        default: null
     },
-    details: { // extra info (old/new list, filenames, etc.)
-        type: String  
+    details: { 
+        type: String,
+        default: ""  
     }
 }, { timestamps: true });
 

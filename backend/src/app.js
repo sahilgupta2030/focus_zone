@@ -10,6 +10,7 @@ import workspaceRoutes from "./routes/workspace.routes.js"
 import boardRoutes from "./routes/board.routes.js"
 import listRoutes from "./routes/list.routes.js"
 import cardRoutes from "./routes/card.routes.js"
+import activityLogRoutes from "./routes/activityLog.routes.js"
 
 dotenv.config();
 
@@ -42,8 +43,9 @@ app.use((err, req, res, next) => {
 app.use("/api/users", userRoutes);
 app.use("/api/workspaces", workspaceRoutes);
 app.use("/api/boards", boardRoutes)
-app.use("/api/lists" , listRoutes)
+app.use("/api/lists", listRoutes)
 app.use("/api/cards", cardRoutes)
+app.use("/api/activityLogs", activityLogRoutes)
 
 const PORT = process.env.PORT || 5001;
 
