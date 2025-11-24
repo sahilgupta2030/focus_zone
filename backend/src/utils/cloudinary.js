@@ -33,3 +33,12 @@ export const uploadOnCloudinary = async (localFilePath) => {
         throw new ApiError(500, "Cloudinary upload failed", [error.message]);
     }
 };
+
+export const deleteFromCloudinary = async (publicId) => {
+    try {
+        return await cloudinary.uploader.destroy(publicId);
+    } catch (error) {
+        console.error("Error deleting file from Cloudinary:", error.message);
+        return null;
+    }
+};

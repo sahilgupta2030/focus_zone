@@ -15,7 +15,6 @@ Helper functions (exact positions in file):
     - getUserWorkspaceRole
     - isBoardMember
     - isWorkspaceAdminOrOwner
-    - isListCreatorOrAdmin
     - isCardCreatorOrAdmin
     - checkBoardAccess
     - findCardById
@@ -47,7 +46,6 @@ const getBoardAndWorkspace = async (boardId) => {
     return { board, workspace };
 };
 
-// Returns role string from workspace.members or 'owner' if owner.
 const getUserWorkspaceRole = (workspace, userId) => {
     if (!workspace || !userId) return null;
     if (String(workspace.owner) === String(userId)) return "owner";
@@ -65,12 +63,6 @@ const isWorkspaceAdminOrOwner = (workspace, userId) => {
     const role = getUserWorkspaceRole(workspace, userId);
     return role === "owner" || role === "admin";
 };
-
-// const isListCreatorOrAdmin = (listDoc, workspace, userId) => {
-//     if (!listDoc) return false;
-//     if (String(listDoc.createdBy) === String(userId)) return true;
-//     return isWorkspaceAdminOrOwner(workspace, userId);
-// };
 
 const isCardCreatorOrAdmin = (cardDoc, workspace, userId) => {
     if (!cardDoc) return false;

@@ -1,26 +1,71 @@
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const messageSchema = new mongoose.Schema({
-    sender: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: "User" 
+const attachmentSchema = new mongoose.Schema(
+    {
+        url: { type: String, required: true },
+        fileType: { type: String, trim: true },   // image/png, application/pdf etc.
+        fileName: { type: String, trim: true },
+        fileSize: { type: Number },               // bytes
     },
-    workspace: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: "Workspace" 
+    { _id: false }
+);
+
+const messageSchema = new mongoose.Schema(
+    {
+        // User who sent the message
+        sender: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+        },
+
+        workspace: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Workspace",
+            required: true,
+        },
+
+        channel: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Card",
+            required: true,
+        },
+
+        // Plain text content
+        text: {
+            type: String,
+            trim: true,
+            default: "",
+        },
+
+        // Message attachments (images, files)
+        attachments: {
+            type: [attachmentSchema],
+            default: [],
+        },
+
+        // Thread replies
+        parentMessage: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "Message",
+            default: null,
+        },
+
+        // Track users who have read the message
+        readBy: [
+            {
+                type: mongoose.Schema.Types.ObjectId,
+                ref: "User",
+            }
+        ],
+
+        // Audit fields
+        edited: {
+            type: Boolean,
+            default: false,
+        },
     },
-    content: { 
-        type: String 
-    },
-    media: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        ref: "Media" 
-    },
-    type: { 
-        type: String, 
-        enum: ["text", "image", "file"], 
-        default: "text" 
-    }
-}, { timestamps: true });
+    { timestamps: true }
+);
 
 export const Message = mongoose.model("Message", messageSchema);
