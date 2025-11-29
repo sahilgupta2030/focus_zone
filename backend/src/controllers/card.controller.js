@@ -2,6 +2,7 @@ import mongoose from "mongoose";
 import { Card } from "../models/card.model.js";
 import { List } from "../models/list.model.js";
 import { Board } from "../models/board.model.js";
+import { Media } from "../models/media.model.js";
 import { Workspace } from "../models/workspace.model.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
@@ -242,6 +243,13 @@ const deleteCard = asyncHandler(async (req, res) => {
 
     // remove from list.cards array
     await List.findByIdAndUpdate(card.list, { $pull: { cards: card._id } });
+
+    // delete all media attached to this card
+    const medias = await Media.find({ attachedTo: cardId, attachedModel: "Card" });
+    for (const m of medias) {
+        await deleteFromCloudinary(m.publicId);
+        await m.deleteOne();
+    }
 
     await card.deleteOne();
 
@@ -545,33 +553,40 @@ const updateCardLabels = asyncHandler(async (req, res) => {
     return res.status(200).json(new ApiResponse(200, card, "Card labels updated"));
 });
 
-// Add attachment (assumes req.file uploaded and Media created separately; here we accept a mediaId)
+// add attachment to card
 const addAttachment = asyncHandler(async (req, res) => {
-    const userId = req.user?._id;
     const { cardId } = req.params;
-    const { mediaId } = req.body;
-    validateObjectIds({ cardId, mediaId });
+    const userId = req.user._id;
 
-    const card = await findCardById(cardId);
-    const { board, workspace } = await getBoardAndWorkspace(card.board);
-    checkBoardAccess(board, workspace, userId);
-
-    if (!card.attachments.some((id) => String(id) === String(mediaId))) {
-        card.attachments.push(mediaId);
-        await card.save();
-
-        // LOG ACTIVITY — ATTACHMENT_ADDED
-        await logActivity({
-            user: userId,
-            workspace: workspace._id,
-            board: board._id,
-            action: "ATTACHMENT_ADDED",
-            targetType: "card",
-            targetId: card._id,
-            details: `Attachment ${mediaId} added to card '${card.title}'`
-        });
+    if (!req.file) {
+        throw new ApiError(400, "No file uploaded");
     }
-    return res.status(200).json(new ApiResponse(200, card, "Attachment added to card"));
+
+    const card = await Card.findById(cardId);
+    if (!card) {
+        throw new ApiError(404, "Card not found");
+    }
+
+    const result = await uploadOnCloudinary(req.file.path);
+
+    const mediaDoc = await Media.create({
+        url: result.secure_url,
+        publicId: result.public_id,
+        type: req.file.mimetype.startsWith("image") ? "image" :
+            req.file.mimetype.startsWith("video") ? "video" : "file",
+        filename: req.file.originalname,
+        size: req.file.size,
+        uploadedBy: userId,
+        attachedTo: card._id,
+        attachedModel: "Card"
+    });
+
+    card.attachments.push(mediaDoc._id);
+    await card.save();
+
+    return res.status(201).json(
+        new ApiResponse(201, mediaDoc, "Attachment added")
+    );
 });
 
 // Remove attachment
@@ -585,11 +600,22 @@ const removeAttachment = asyncHandler(async (req, res) => {
     const { board, workspace } = await getBoardAndWorkspace(card.board);
     checkBoardAccess(board, workspace, userId);
 
+    // Check if attachment exists
     const existed = card.attachments.some((id) => String(id) === String(mediaId));
+
+    // Remove attachment from card
     card.attachments = card.attachments.filter((id) => String(id) !== String(mediaId));
     await card.save();
 
     if (existed) {
+        // Delete media file
+        const media = await Media.findById(mediaId);
+
+        if (media) {
+            await deleteFromCloudinary(media.publicId);
+            await media.deleteOne();
+        }
+
         // LOG ACTIVITY — ATTACHMENT_REMOVED
         await logActivity({
             user: userId,
@@ -602,7 +628,9 @@ const removeAttachment = asyncHandler(async (req, res) => {
         });
     }
 
-    return res.status(200).json(new ApiResponse(200, card, "Attachment removed"));
+    return res.status(200).json(
+        new ApiResponse(200, card, "Attachment removed")
+    );
 });
 
 // Add comment (assumes Message creation elsewhere returns messageId)

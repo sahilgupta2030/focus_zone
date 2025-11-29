@@ -12,6 +12,7 @@ import listRoutes from "./routes/list.routes.js"
 import cardRoutes from "./routes/card.routes.js"
 import activityLogRoutes from "./routes/activityLog.routes.js"
 import messageRoutes from "./routes/message.routes.js"
+import mediaRoutes from "./routes/media.routes.js"
 
 dotenv.config();
 
@@ -48,6 +49,7 @@ app.use("/api/lists", listRoutes)
 app.use("/api/cards", cardRoutes)
 app.use("/api/activityLogs", activityLogRoutes)
 app.use("/api/messages", messageRoutes)
+app.use("/api/medias", mediaRoutes)
 
 const PORT = process.env.PORT || 5001;
 

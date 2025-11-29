@@ -1,6 +1,7 @@
 import mongoose from "mongoose";
 import { Message } from "../models/message.model.js";
 import { Card } from "../models/card.model.js";
+import { Media } from "../models/media.model.js";
 import { Workspace } from "../models/workspace.model.js";
 import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
 import { ApiError } from "../utils/apiError.js";
@@ -146,57 +147,43 @@ const sendMessage = asyncHandler(async (req, res) => {
  * Create a media message (with attachments)
  */
 const sendMediaMessage = asyncHandler(async (req, res) => {
-    const userId = req.user?._id;
-    const { card: cardId, workspace: workspaceId, parentMessage, text } = req.body;
+    const { cardId } = req.params;
+    const userId = req.user._id;
 
-    validateObjectIds({ cardId, workspaceId });
-
-    const { card, workspace } = await findCardAndWorkspace(cardId);
-    if (String(workspace._id) !== String(workspaceId)) {
-        throw new ApiError(400, "Card does not belong to the provided workspace");
+    if (!req.files || req.files.length === 0) {
+        throw new ApiError(400, "No files uploaded");
     }
 
-    isCardMember(card, workspace, userId);
-
-    if (!req.files && !req.file) {
-        throw new ApiError(400, "No files provided");
-    }
-
-    // support multiple files (req.files) or single (req.file)
-    const files = req.files && req.files.length ? req.files : req.file ? [req.file] : [];
     const attachments = [];
 
-    for (const file of files) {
-        // uploadOnCloudinary should return { url, public_id, ... }
+    for (const file of req.files) {
         const result = await uploadOnCloudinary(file.path);
-        attachments.push({
-            url: result.url,
-            fileType: result.format || file.mimetype,
-            fileName: file.originalname || result.original_filename || "file",
-            fileSize: result.bytes || file.size || 0,
+
+        const mediaDoc = await Media.create({
+            url: result.secure_url,
+            publicId: result.public_id,
+            type: file.mimetype.startsWith("image") ? "image" :
+                file.mimetype.startsWith("video") ? "video" : "file",
+            filename: file.originalname,
+            size: file.size,
+            uploadedBy: userId,
+            attachedTo: cardId,
+            attachedModel: "Message"
         });
+
+        attachments.push(mediaDoc._id);
     }
 
-    // if parentMessage provided, validate it
-    if (parentMessage) {
-        const parent = await findMessageById(parentMessage);
-        validateMessageBelongsToCard(parent, cardId);
-    }
-
-    const messageDoc = await Message.create({
+    const message = await Message.create({
+        cardId,
         sender: userId,
-        workspace: workspaceId,
-        channel: cardId,
-        text: text || "", // media-only message may have empty text
-        attachments,
-        parentMessage: parentMessage || null,
-        edited: false,
+        type: "media",
+        attachments
     });
 
-    const populated = await Message.findById(messageDoc._id).populate("sender", "name avatar").lean();
-    return res
-        .status(201)
-        .json(new ApiResponse(201, populated, "Media message sent"));
+    return res.status(201).json(
+        new ApiResponse(201, message, "Media message sent")
+    );
 });
 
 /**
@@ -284,12 +271,14 @@ const deleteMessage = asyncHandler(async (req, res) => {
     checkMessageEditPermission(message, workspace, userId);
 
     // DELETE MEDIA FROM CLOUDINARY (if any)
-    if (message.attachments && message.attachments.length > 0) {
-        for (const file of message.attachments) {
-            if (file.public_id) {
-                await deleteFromCloudinary(file.public_id);
-            }
-        }
+    const medias = await Media.find({
+        attachedTo: messageId,
+        attachedModel: "Message"
+    });
+
+    for (const m of medias) {
+        await deleteFromCloudinary(m.publicId);
+        await m.deleteOne();
     }
 
     await Message.findByIdAndDelete(messageId);

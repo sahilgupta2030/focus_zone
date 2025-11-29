@@ -1,37 +1,37 @@
 import mongoose from 'mongoose';
 
 const activityLogSchema = new mongoose.Schema({
-    user: { 
-        type: mongoose.Schema.Types.ObjectId, 
+    user: {
+        type: mongoose.Schema.Types.ObjectId,
         ref: "User",
         required: true
     },
-    workspace: { 
-        type: mongoose.Schema.Types.ObjectId, 
+    workspace: {
+        type: mongoose.Schema.Types.ObjectId,
         ref: "Workspace",
         required: true
     },
-    board: { 
-        type: mongoose.Schema.Types.ObjectId, 
+    board: {
+        type: mongoose.Schema.Types.ObjectId,
         ref: "Board",
         default: null
     },
-    action: { 
-        type: String, 
-        required: true 
-    }, 
-    targetType: { 
-        type: String, 
-        enum: ["workspace", "board", "list", "card", "message", "user"],
-        required: true 
+    action: {
+        type: String,
+        required: true
     },
-    targetId: { 
+    targetType: {
+        type: String,
+        enum: ["workspace", "board", "list", "card", "user"],
+        required: true
+    },
+    targetId: {
         type: mongoose.Schema.Types.ObjectId,
         default: null
     },
-    details: { 
+    details: {
         type: String,
-        default: ""  
+        default: ""
     }
 }, { timestamps: true });
 
