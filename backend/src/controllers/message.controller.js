@@ -7,6 +7,7 @@ import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
+import { notifyCardMembers } from "../controllers/notification.controller.js";
 
 /*
 Helper functions (exact positions in file):
@@ -138,6 +139,15 @@ const sendMessage = asyncHandler(async (req, res) => {
 
     const populated = await Message.findById(messageDoc._id).populate("sender", "name avatar").lean();
 
+    await notifyCardMembers(cardId, {
+        createdBy: userId,
+        message: `${req.user.name} sent a new message`,
+        workspace: workspaceId,
+        board: card.board,
+        card: cardId,
+        redirectUrl: `/card/${cardId}`
+    });
+
     return res
         .status(201)
         .json(new ApiResponse(201, populated, "Message sent"));
@@ -179,6 +189,18 @@ const sendMediaMessage = asyncHandler(async (req, res) => {
         sender: userId,
         type: "media",
         attachments
+    });
+
+    const card = await Card.findById(cardId)
+
+    await notifyCardMembers(cardId, {
+        createdBy: userId,
+        message: `${req.user.name} sent an attachment`,
+        type: "message",
+        workspace: card.workspace,
+        board: card.board,
+        card: cardId,
+        redirectUrl: `/card/${cardId}`
     });
 
     return res.status(201).json(
@@ -223,6 +245,15 @@ const replyToMessage = asyncHandler(async (req, res) => {
     // Populate sender info for frontend rendering
     replyMsg = await replyMsg.populate("sender", "name avatar");
 
+    await notifyCardMembers(card._id, {
+        createdBy: userId,
+        message: `${req.user.name} replied to a message`,
+        workspace: workspace._id,
+        board: card.board,
+        card: card._id,
+        redirectUrl: `/card/${card._id}`
+    });
+
     return res
         .status(201)
         .json(new ApiResponse(201, replyMsg, "Reply message created successfully"));
@@ -250,6 +281,16 @@ const editMessage = asyncHandler(async (req, res) => {
     await Message.findByIdAndUpdate(messageId, { text, edited: true }, { new: true });
 
     const updated = await Message.findById(messageId).populate("sender", "name avatar").lean();
+
+    await notifyCardMembers(message.channel, {
+        createdBy: userId,
+        message: `${req.user.name} edited a message`,
+        workspace: workspace._id,
+        board: message.board,
+        card: message.channel,
+        redirectUrl: `/card/${message.channel}`
+    });
+
     return res
         .status(200)
         .json(new ApiResponse(200, updated, "Message edited"));
@@ -282,6 +323,15 @@ const deleteMessage = asyncHandler(async (req, res) => {
     }
 
     await Message.findByIdAndDelete(messageId);
+
+    await notifyCardMembers(message.channel, {
+        createdBy: userId,
+        message: `${req.user.name} deleted a message`,
+        workspace: workspace._id,
+        board: message.board,
+        card: message.channel,
+        redirectUrl: `/card/${message.channel}`
+    });
 
     return res
         .status(200)

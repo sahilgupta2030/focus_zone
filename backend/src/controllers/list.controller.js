@@ -7,6 +7,7 @@ import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { logActivity } from "../controllers/activityLog.controller.js";
+import { notifyBoardMembers } from "../controllers/notification.controller.js";
 
 /*
 Helper functions:
@@ -133,6 +134,13 @@ const createList = asyncHandler(async (req, res) => {
             details: `List "${title}" created`,
         });
 
+        await notifyBoardMembers({
+            boardId,
+            triggeredBy: user,
+            message: `created a new list "${title}"`,
+            metadata: { listId: created._id }
+        });
+
         return res
             .status(201)
             .json(new ApiResponse(201, populated, "List created successfully"));
@@ -237,6 +245,13 @@ const updateList = asyncHandler(async (req, res) => {
             targetType: "list",
             targetId: list._id,
             details: `Title changed from "${oldTitle}" to "${title}"`,
+        });
+
+        await notifyBoardMembers({
+            boardId: board._id,
+            triggeredBy: user,
+            message: `renamed list "${oldTitle}" → "${title}"`,
+            metadata: { listId: list._id }
         });
 
         return res
@@ -352,6 +367,13 @@ const deleteList = asyncHandler(async (req, res) => {
             details: `Deleted list "${list.title}"`,
         });
 
+        await notifyBoardMembers({
+            boardId: board._id,
+            triggeredBy: user,
+            message: `deleted the list "${list.title}"`,
+            metadata: { listId }
+        });
+
         return res
             .status(200)
             .json(new ApiResponse(200, null, "List deleted successfully"));
@@ -434,6 +456,13 @@ const toggleListStatus = asyncHandler(async (req, res) => {
         details: msg,
     });
 
+    await notifyBoardMembers({
+        boardId: board._id,
+        triggeredBy: user,
+        message: `${msg.toLowerCase()} (${list.title})`,
+        metadata: { listId }
+    });
+
     return res.status(200).json(new ApiResponse(200, updated, `${msg} successfully`));
 });
 
@@ -502,6 +531,23 @@ const moveListToAnotherBoard = asyncHandler(async (req, res) => {
         details: `Moved from board ${oldBoardId} → ${targetBoardId}`,
     });
 
+    /* Notify source board members */
+    await notifyBoardMembers({
+        boardId: oldBoardId,
+        triggeredBy: user,
+        message: `moved list "${list.title}" to another board`,
+        metadata: { listId }
+    });
+
+    /* Notify target board members */
+    await notifyBoardMembers({
+        boardId: targetBoardId,
+        triggeredBy: user,
+        type: "LIST_MOVED",
+        message: `received list "${list.title}" from another board`,
+        metadata: { listId }
+    });
+
     return res
         .status(200)
         .json(new ApiResponse(200, list, "List moved successfully"));
@@ -546,6 +592,13 @@ const clearCard = asyncHandler(async (req, res) => {
         targetType: "list",
         targetId: listId,
         details: `All cards removed`,
+    });
+
+    await notifyBoardMembers({
+        boardId: board._id,
+        triggeredBy: user,
+        message: `cleared all cards from list "${list.title}"`,
+        metadata: { listId }
     });
 
     return res
@@ -606,6 +659,13 @@ const reOrderList = asyncHandler(async (req, res) => {
         targetType: "list",
         targetId: listId,
         details: `Moved from ${startIndex} → ${endIndex}`,
+    });
+
+    await notifyBoardMembers({
+        boardId,
+        triggeredBy: user,
+        message: `reordered lists`,
+        metadata: {}
     });
 
     return res

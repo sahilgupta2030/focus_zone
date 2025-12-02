@@ -5,6 +5,8 @@ import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { logActivity } from "../controllers/activityLog.controller.js";
+import { notifyUser, notifyBoardMembers } from "../controllers/notification.controller.js";
+
 
 const isValidObjectId = (id) => mongoose.Types.ObjectId.isValid(String(id));
 
@@ -51,6 +53,14 @@ const createBoard = asyncHandler(async (req, res) => {
         targetType: "board",
         targetId: board._id,
         details: `Board titled '${title}' created`,
+    });
+
+    // Notify board creator
+    await notifyUser(userId, {
+        message: `You created a new board: "${title}"`,
+        workspace: workspaceId,
+        board: board._id,
+        redirectUrl: `/workspace/${workspaceId}/board/${board._id}`
     });
 
     const populated = await Board.findById(board._id)
@@ -250,6 +260,15 @@ const updateBoard = asyncHandler(async (req, res) => {
         details: `Board updated: ${title ? "title changed" : "other updates"}`,
     });
 
+    // Notify all board members
+    await notifyBoardMembers(boardId, {
+        createdBy: userId,
+        message: `Board "${updatedBoard.title}" was updated`,
+        workspace: board.workspace,
+        board: boardId,
+        redirectUrl: `/workspace/${board.workspace}/board/${boardId}`
+    });
+
     return res
         .status(200)
         .json(new ApiResponse(200, updatedBoard, "Board updated successfully"));
@@ -295,6 +314,14 @@ const deleteBoard = asyncHandler(async (req, res) => {
         targetType: "board",
         targetId: boardId,
         details: "Board deleted",
+    });
+
+    await notifyBoardMembers(boardId, {
+        createdBy: userId,
+        message: `Board "${board.title}" was deleted`,
+        workspace: board.workspace,
+        board: boardId,
+        redirectUrl: `/workspace/${board.workspace}`
     });
 
     return res
@@ -362,6 +389,15 @@ const addMemberToBoard = asyncHandler(async (req, res) => {
         targetType: "board",
         targetId: boardId,
         details: `Member added: ${memberId}`,
+    });
+
+    // Notify newly added user
+    await notifyUser(memberId, {
+        createdBy: userId,
+        message: `You were added to the board "${updatedBoard.title}"`,
+        workspace: updatedBoard.workspace,
+        board: boardId,
+        redirectUrl: `/workspace/${updatedBoard.workspace}/board/${boardId}`
     });
 
     return res
@@ -434,6 +470,15 @@ const removeMemberFromBoard = asyncHandler(async (req, res) => {
         targetType: "board",
         targetId: boardId,
         details: `Member removed: ${memberId}`,
+    });
+
+    // Notify removed user
+    await notifyUser(memberId, {
+        createdBy: userId,
+        message: `You were removed from the board "${updatedBoard.title}"`,
+        workspace: updatedBoard.workspace,
+        board: boardId,
+        redirectUrl: `/workspace/${updatedBoard.workspace}`
     });
 
     return res

@@ -7,6 +7,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { uploadOnCloudinary, deleteFromCloudinary } from "../utils/cloudinary.js";
+import { notifyCardMembers, notifyUser } from "../controllers/notification.controller.js";
 
 // Validate any ObjectId(s)
 const validateObjectIds = (ids = {}) => {
@@ -17,7 +18,7 @@ const validateObjectIds = (ids = {}) => {
     }
 };
 
-// Find Card + Workspace + check membership
+// Find Card  Workspace  check membership
 const findCardAndCheckAccess = async (cardId, userId) => {
     validateObjectIds({ cardId });
 
@@ -107,6 +108,29 @@ const uploadMedia = asyncHandler(async (req, res) => {
         attachedModel
     });
 
+    if (attachedModel === "Card") {
+        // Notify assigned card members except uploader
+        await notifyCardMembers(attachedTo, {
+            createdBy: user._id,
+            message: `${user.name} uploaded a new ${type} to the card`,
+            type: "task",
+            card: attachedTo,
+        });
+    }
+
+    if (attachedModel === "Message") {
+        // Notify message receiver (if not same user)
+        const msg = await Message.findById(attachedTo);
+        if (msg && String(msg.receiver) !== String(user._id)) {
+            await notifyUser(msg.receiver, {
+                createdBy: user._id,
+                message: `${user.name} sent a media attachment`,
+                type: "message",
+                redirectUrl: `/messages/${attachedTo}`
+            });
+        }
+    }
+
     return res
         .status(201)
         .json(new ApiResponse(201, media, "Media uploaded successfully"));
@@ -143,6 +167,15 @@ const deleteMedia = asyncHandler(async (req, res) => {
 
     await deleteFromCloudinary(media.publicId);
     await media.deleteOne();
+
+    if (media.attachedModel === "Card") {
+        await notifyCardMembers(media.attachedTo, {
+            createdBy: req.user._id,
+            message: `${req.user.name} deleted a media file from the card`,
+            type: "card",
+            card: media.attachedTo,
+        });
+    }
 
     return res
         .status(200)

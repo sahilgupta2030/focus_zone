@@ -3,6 +3,7 @@ import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { logActivity } from "../controllers/activityLog.controller.js";
+import { notifyUser, notifyMultipleUsers } from "../controllers/notification.controller.js";
 
 // Creating new workspace 
 const createWorkspace = asyncHandler(async (req, res) => {
@@ -38,6 +39,13 @@ const createWorkspace = asyncHandler(async (req, res) => {
         targetType: "workspace",
         targetId: workspace._id,
         details: `Workspace '${workspace.name}' created`
+    });
+
+    await notifyUser(ownerId, {
+        createdBy: ownerId,
+        message: `You created a new workspace '${workspace.name}'`,
+        workspace: workspace._id,
+        redirectUrl: `/workspace/${workspace._id}`
     });
 
     return res
@@ -135,6 +143,14 @@ const updateWorkspace = asyncHandler(async (req, res) => {
         details: `Updated fields: ${Object.keys(req.body).join(", ")}`
     });
 
+    const memberIds = workspace.members.map(m => m.user);
+    await notifyMultipleUsers(memberIds, {
+        createdBy: userId,
+        message: `Workspace '${workspace.name}' was updated`,
+        workspace: workspace._id,
+        redirectUrl: `/workspace/${workspace._id}`
+    });
+
     return res
         .status(200)
         .json(new ApiResponse(200, workspace, "Workspace updated successfully"));
@@ -169,6 +185,13 @@ const deleteWorkspace = asyncHandler(async (req, res) => {
         targetType: "workspace",
         targetId: workspace._id,
         details: "Soft-deleted workspace"
+    });
+
+    const memberIds = workspace.members.map(m => m.user);
+    await notifyMultipleUsers(memberIds, {
+        createdBy: userId,
+        message: `Workspace '${workspace.name}' was deleted`,
+        workspace: workspace._id
     });
 
     return res
@@ -217,6 +240,23 @@ const addMemberToWorkspace = asyncHandler(async (req, res) => {
         targetType: "user",
         targetId: memberId,
         details: `Added member with role '${role || "member"}'`
+    });
+
+    await notifyUser(memberId, {
+        createdBy: userId,
+        message: `You were added to workspace '${workspace.name}' as '${role || "member"}'`,
+        workspace: workspace._id,
+        redirectUrl: `/workspace/${workspace._id}`
+    });
+    const otherMembers = workspace.members
+        .map(m => m.user)
+        .filter(id => id.toString() !== memberId.toString());
+
+    await notifyMultipleUsers(otherMembers, {
+        createdBy: userId,
+        message: `A new member was added to workspace '${workspace.name}'`,
+        workspace: workspace._id,
+        redirectUrl: `/workspace/${workspace._id}`
     });
 
     return res
@@ -269,6 +309,12 @@ const removeMemberFromWorkspace = asyncHandler(async (req, res) => {
         targetType: "user",
         targetId: memberId,
         details: "Removed member from workspace"
+    });
+
+    await notifyUser(memberId, {
+        createdBy: userId,
+        message: `You were removed from workspace '${workspace.name}'`,
+        workspace: workspace._id
     });
 
     return res
@@ -358,6 +404,13 @@ const updateMemberRole = asyncHandler(async (req, res) => {
         targetType: "user",
         targetId: memberId,
         details: `Changed role to '${newRole}'`
+    });
+
+    await notifyUser(memberId, {
+        createdBy: userId,
+        message: `Your role in workspace '${workspace.name}' was changed to '${newRole}'`,
+        workspace: workspace._id,
+        redirectUrl: `/workspace/${workspace._id}`
     });
 
     return res
@@ -589,6 +642,16 @@ const leaveWorkspace = asyncHandler(async (req, res) => {
         targetType: "workspace",
         targetId: workspace._id,
         details: "User left workspace"
+    });
+
+    const adminIds = workspace.members
+        .filter(m => ["owner", "admin"].includes(m.role))
+        .map(m => m.user);
+
+    await notifyMultipleUsers(adminIds, {
+        createdBy: userId,
+        message: `A member left the workspace '${workspace.name}'`,
+        workspace: workspace._id
     });
 
     return res

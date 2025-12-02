@@ -8,6 +8,7 @@ import { ApiError } from "../utils/apiError.js";
 import { ApiResponse } from "../utils/apiResponse.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { logActivity } from "../controllers/activityLog.controller.js";
+import { notifyUser, notifyBoardMembers, notifyCardMembers } from "../controllers/notification.controller.js";
 
 /*
 Helper functions (exact positions in file):
@@ -146,6 +147,15 @@ const createCard = asyncHandler(async (req, res) => {
         details: `Card '${newCard.title}' created in list '${listDoc.name}'`
     });
 
+    // NOTIFY — CARD_CREATED
+    await notifyBoardMembers(board._id, {
+        message: `New card '${newCard.title}' created in list '${listDoc.name}'`,
+        cardId: newCard._id,
+        boardId: board._id,
+        workspaceId: workspace._id,
+        triggeredBy: userId
+    });
+
     return res.status(201).json(new ApiResponse(201, newCard, "Card created successfully"));
 });
 
@@ -226,6 +236,15 @@ const updateCard = asyncHandler(async (req, res) => {
         details: `Card '${card.title}' updated`
     });
 
+    // NOTIFY — CARD_UPDATED
+    await notifyCardMembers(card._id, {
+        message: `Card '${card.title}' was updated`,
+        cardId: card._id,
+        boardId: board._id,
+        workspaceId: workspace._id,
+        triggeredBy: userId
+    });
+
     return res.status(200).json(new ApiResponse(200, card, "Card updated"));
 });
 
@@ -264,6 +283,15 @@ const deleteCard = asyncHandler(async (req, res) => {
         details: `Card '${card.title}' deleted`
     });
 
+    // NOTIFY — CARD_DELETED
+    await notifyCardMembers(card._id, {
+        message: `Card '${card.title}' was deleted`,
+        cardId: card._id,
+        boardId: board._id,
+        workspaceId: workspace._id,
+        triggeredBy: userId
+    });
+
     return res.status(200).json(new ApiResponse(200, {}, "Card deleted permanently"));
 });
 
@@ -293,6 +321,15 @@ const archiveCard = asyncHandler(async (req, res) => {
         details: `Card '${card.title}' archived`
     });
 
+    // NOTIFY — CARD_ARCHIVED
+    await notifyBoardMembers(board._id, {
+        message: `Card '${card.title}' was archived`,
+        cardId: card._id,
+        boardId: board._id,
+        workspaceId: workspace._id,
+        triggeredBy: userId
+    });
+
     return res.status(200).json(new ApiResponse(200, card, "Card archived"));
 });
 
@@ -320,6 +357,15 @@ const restoreCard = asyncHandler(async (req, res) => {
         targetType: "card",
         targetId: card._id,
         details: `Card '${card.title}' restored`
+    });
+
+    // NOTIFY — CARD_RESTORED
+    await notifyBoardMembers(board._id, {
+        message: `Card '${card.title}' was restored`,
+        cardId: card._id,
+        boardId: board._id,
+        workspaceId: workspace._id,
+        triggeredBy: userId
     });
 
     return res.status(200).json(new ApiResponse(200, card, "Card restored"));
@@ -366,6 +412,15 @@ const moveCardWithinList = asyncHandler(async (req, res) => {
         targetType: "card",
         targetId: card._id,
         details: `Card '${card.title}' moved within list ${card.list} from ${oldPosition} to ${newPosition}`
+    });
+
+    // NOTIFY — CARD_MOVED
+    await notifyBoardMembers(board._id, {
+        message: `Card '${card.title}' moved within list`,
+        cardId: card._id,
+        boardId: board._id,
+        workspaceId: workspace._id,
+        triggeredBy: userId
     });
 
     return res.status(200).json(new ApiResponse(200, card, "Card moved within list"));
@@ -417,6 +472,15 @@ const moveCardToAnotherList = asyncHandler(async (req, res) => {
         details: `Card '${card.title}' moved from list ${oldListId} to ${targetListId} at position ${newPos}`
     });
 
+    // NOTIFY — CARD_MOVED
+    await notifyBoardMembers(board._id, {
+        message: `Card '${card.title}' moved to another list`,
+        cardId: card._id,
+        boardId: board._id,
+        workspaceId: workspace._id,
+        triggeredBy: userId
+    });
+
     return res.status(200).json(new ApiResponse(200, card, "Card moved to another list"));
 });
 
@@ -450,6 +514,15 @@ const assignCard = asyncHandler(async (req, res) => {
             targetType: "card",
             targetId: card._id,
             details: `User ${assigneeId} assigned to card '${card.title}'`
+        });
+
+        // NOTIFY — CARD_ASSIGNED
+        await notifyUser(assigneeId, {
+            message: `You were assigned to card '${card.title}'`,
+            cardId: card._id,
+            boardId: board._id,
+            workspaceId: workspace._id,
+            triggeredBy: userId
         });
     }
     return res.status(200).json(new ApiResponse(200, card, "User assigned to card"));
@@ -486,6 +559,15 @@ const unassignCard = asyncHandler(async (req, res) => {
             targetId: card._id,
             details: `User ${assigneeId} unassigned from card '${card.title}'`
         });
+
+        // NOTIFY — CARD_UNASSIGNED
+        await notifyUser(assigneeId, {
+            message: `You were unassigned from card '${card.title}'`,
+            cardId: card._id,
+            boardId: board._id,
+            workspaceId: workspace._id,
+            triggeredBy: userId
+        });
     }
 
     return res.status(200).json(
@@ -521,6 +603,15 @@ const updateCardStatus = asyncHandler(async (req, res) => {
         details: `Status changed from '${oldStatus}' to '${status}' for card '${card.title}'`
     });
 
+    // NOTIFY — CARD_STATUS_UPDATED
+    await notifyCardMembers(card._id, {
+        message: `Status of '${card.title}' changed to '${status}'`,
+        cardId: card._id,
+        boardId: board._id,
+        workspaceId: workspace._id,
+        triggeredBy: userId
+    });
+
     return res.status(200).json(new ApiResponse(200, card, "Card status updated"));
 });
 
@@ -548,6 +639,15 @@ const updateCardLabels = asyncHandler(async (req, res) => {
         targetType: "card",
         targetId: card._id,
         details: `Labels updated for card '${card.title}'`
+    });
+
+    // NOTIFY — CARD_LABELS_UPDATED
+    await notifyCardMembers(card._id, {
+        message: `Labels updated for card '${card.title}'`,
+        cardId: card._id,
+        boardId: board._id,
+        workspaceId: workspace._id,
+        triggeredBy: userId
     });
 
     return res.status(200).json(new ApiResponse(200, card, "Card labels updated"));
