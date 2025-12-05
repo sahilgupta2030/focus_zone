@@ -12,11 +12,13 @@ import {
 } from "../controllers/list.controller.js";
 
 import { verifyJWT } from "../middleware/verifyJWT.middleware.js";
+import { presenceUpdater } from "../middleware/presence.middleware.js";
 
 const router = express.Router();
 
 // all routes are protected
 router.use(verifyJWT);
+router.use(presenceUpdater);
 
 
 router.post("/:boardId", createList);

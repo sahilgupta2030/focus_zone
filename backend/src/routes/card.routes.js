@@ -25,11 +25,14 @@ import {
 } from "../controllers/card.controller.js";
 
 import { verifyJWT } from "../middleware/verifyJWT.middleware.js";
+import { presenceUpdater } from "../middleware/presence.middleware.js";
+
 
 const router = express.Router();
 
 // All card routes are protected
 router.use(verifyJWT);
+router.use(presenceUpdater);
 
 /* -------------------------------
         CARD CRUD ROUTES

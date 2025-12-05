@@ -14,6 +14,7 @@ import activityLogRoutes from "./routes/activityLog.routes.js"
 import messageRoutes from "./routes/message.routes.js"
 import mediaRoutes from "./routes/media.routes.js"
 import notificationRoutes from "./routes/notification.routes.js"
+import presenceRoutes from "./routes/presence.routes.js"
 
 dotenv.config();
 
@@ -52,6 +53,7 @@ app.use("/api/activityLogs", activityLogRoutes)
 app.use("/api/messages", messageRoutes)
 app.use("/api/medias", mediaRoutes)
 app.use("/api/notifications", notificationRoutes)
+app.use("/api/presence", presenceRoutes)
 
 const PORT = process.env.PORT || 5001;
 

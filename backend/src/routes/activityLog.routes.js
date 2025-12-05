@@ -1,6 +1,6 @@
 import express from "express";
 import { verifyJWT } from "../middleware/verifyJWT.middleware.js";
-
+import { presenceUpdater } from "../middleware/presence.middleware.js";
 import {
     getActivityLogs,
     getWorkspaceActivity,
@@ -16,7 +16,7 @@ const router = express.Router();
 
 // Apply verifyJWT middleware to all routes
 router.use(verifyJWT);
-
+router.use(presenceUpdater);
 
 router.get("/all", getActivityLogs);
 router.get("/workspace/:workspaceId", getWorkspaceActivity);

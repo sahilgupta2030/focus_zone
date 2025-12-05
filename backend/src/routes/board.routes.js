@@ -11,11 +11,13 @@ import {
     addMemberToBoard,
     removeMemberFromBoard
 } from "../controllers/board.controller.js";
+import { presenceUpdater } from "../middleware/presence.middleware.js";
 
 const router = express.Router();
 
 // Apply verifyJWT middleware to all routes
 router.use(verifyJWT);
+router.use(presenceUpdater);
 
 
 router.post("/", createBoard);

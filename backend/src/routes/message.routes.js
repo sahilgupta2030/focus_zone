@@ -1,6 +1,6 @@
 import express from "express";
 import { verifyJWT } from "../middleware/verifyJWT.middleware.js";
-
+import { presenceUpdater } from "../middleware/presence.middleware.js";
 import {
     sendMessage,
     sendMediaMessage,
@@ -30,11 +30,12 @@ const upload = multer({ dest: "uploads/" });
 
 // Apply verifyJWT middleware to all routes
 router.use(verifyJWT);
+router.use(presenceUpdater);
 
 /* ---------------------- Message Creation ---------------------- */
-router.post("/", sendMessage);                               
-router.post("/media",upload.single("file"), sendMediaMessage);                       
-router.post("/medias",upload.array("files"), sendMediaMessage);                       
+router.post("/", sendMessage);
+router.post("/media", upload.single("file"), sendMediaMessage);
+router.post("/medias", upload.array("files"), sendMediaMessage);
 router.post("/reply/:messageId", replyToMessage);
 
 /* ---------------------- Modify/Delete ------------------------- */
