@@ -1,5 +1,8 @@
 import express from "express";
 import { verifyJWT } from "../middleware/verifyJWT.middleware.js";
+import { presenceUpdater } from "../middleware/presence.middleware.js";
+
+// controllers
 import {
     createBoard,
     getBoardsByWorkspace,
@@ -11,23 +14,88 @@ import {
     addMemberToBoard,
     removeMemberFromBoard
 } from "../controllers/board.controller.js";
-import { presenceUpdater } from "../middleware/presence.middleware.js";
+
+// validators
+import {
+    createBoardSchema,
+    updateBoardSchema,
+    boardIdParam,
+    workspaceIdParam,
+    addBoardMemberSchema,
+    removeBoardMemberSchema
+} from "../validators/board.validator.js";
+
+// middleware to validate using zod schemas
+import { validate } from "../middleware/validate.middleware.js";
 
 const router = express.Router();
 
-// Apply verifyJWT middleware to all routes
+// Apply verifyJWT & presence middleware to all routes
 router.use(verifyJWT);
 router.use(presenceUpdater);
 
+// ROUTES WITH VALIDATION
 
-router.post("/", createBoard);
-router.get("/workspace/:workspaceId", getBoardsByWorkspace);
-router.get("/:boardId", getBoardById);
-router.get("/:boardId/members", getBoardMember);
+// Create Board
+router.post(
+    "/",
+    validate(createBoardSchema),
+    createBoard
+);
+
+// Get Boards by Workspace
+router.get(
+    "/workspace/:workspaceId",
+    validate(workspaceIdParam, "params"),
+    getBoardsByWorkspace
+);
+
+// Get Board by ID
+router.get(
+    "/:boardId",
+    validate(boardIdParam, "params"),
+    getBoardById
+);
+
+// Get Board Members
+router.get(
+    "/:boardId/members",
+    validate(boardIdParam, "params"),
+    getBoardMember
+);
+
+// Get All Boards
 router.get("/", getAllBoard);
-router.put("/:boardId", updateBoard);
-router.delete("/:boardId", deleteBoard);
-router.post("/:boardId/add-member", addMemberToBoard);
-router.post("/:boardId/remove-member", removeMemberFromBoard);
+
+// Update Board
+router.put(
+    "/:boardId",
+    validate(boardIdParam, "params"),
+    validate(updateBoardSchema),
+    updateBoard
+);
+
+// Delete Board
+router.delete(
+    "/:boardId",
+    validate(boardIdParam, "params"),
+    deleteBoard
+);
+
+// Add Member to Board
+router.post(
+    "/:boardId/add-member",
+    validate(boardIdParam, "params"),
+    validate(addBoardMemberSchema),
+    addMemberToBoard
+);
+
+// Remove Member from Board
+router.post(
+    "/:boardId/remove-member",
+    validate(boardIdParam, "params"),
+    validate(removeBoardMemberSchema),
+    removeMemberFromBoard
+);
 
 export default router;

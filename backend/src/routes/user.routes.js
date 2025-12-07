@@ -13,23 +13,93 @@ import {
 } from "../controllers/user.controller.js";
 
 import { verifyJWT } from "../middleware/verifyJWT.middleware.js";
-import multer from "multer"; // for file upload
+import { validate } from "../middleware/validate.middleware.js";
 
-const router = express.Router();
+// Validators
+import {
+    registerSchema,
+    loginSchema,
+    updateProfileSchema,
+    changePasswordSchema,
+    idParam
+} from "../validators/user.validator.js";
+
+import multer from "multer";
+
+// File Upload
 const upload = multer({ dest: "uploads/" });
 
-// Public routes
-router.post("/register", upload.single("avatar"), registerUser);
-router.post("/login", loginUser);
+const router = express.Router();
 
-// Protected routes
+/* ---------------------- PUBLIC ROUTES ---------------------- */
+
+// Register
+router.post(
+    "/register",
+    upload.single("avatar"),
+    validate(registerSchema),
+    registerUser
+);
+
+// Login
+router.post(
+    "/login",
+    validate(loginSchema),
+    loginUser
+);
+
+/* --------------------- PROTECTED ROUTES --------------------- */
+
+// Logout
 router.post("/logout", verifyJWT, logoutUser);
+
+// Get logged-in user's profile
 router.get("/me", verifyJWT, getUserProfile);
-router.put("/update", verifyJWT, upload.single("avatar"), updateUserProfile);
+
+// Update profile
+router.put(
+    "/update",
+    verifyJWT,
+    upload.single("avatar"),
+    validate(updateProfileSchema),
+    updateUserProfile
+);
+
+// Change password
+router.put(
+    "/change-password",
+    verifyJWT,
+    validate(changePasswordSchema),
+    changePassword
+);
+
+// Upload avatar only
+router.post(
+    "/upload-avatar",
+    verifyJWT,
+    upload.single("avatar"),
+    uploadAvatar
+);
+
+/* -------------------- ADMIN / MEMBER ROUTES -------------------- */
+
+// Get all users
 router.get("/all", verifyJWT, getAllUsers);
-router.get("/:id", verifyJWT, getUserById);
-router.delete("/:id", verifyJWT, deleteUser);
-router.put("/change-password", verifyJWT, changePassword);
-router.post("/upload-avatar", verifyJWT, upload.single("avatar"), uploadAvatar);
+
+// Get user by ID
+router.get(
+    "/:id",
+    verifyJWT,
+    validate(idParam, "params"),
+    getUserById
+);
+
+// Delete user by ID
+router.delete(
+    "/:id",
+    verifyJWT,
+    validate(idParam, "params"),
+    deleteUser
+);
 
 export default router;

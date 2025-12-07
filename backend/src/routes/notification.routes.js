@@ -1,5 +1,7 @@
 import express from "express";
 import { verifyJWT } from "../middleware/verifyJWT.middleware.js";
+import { validate } from "../middleware/validate.middleware.js";
+
 import {
     getUserNotifications,
     getUnreadNotifications,
@@ -7,17 +9,27 @@ import {
     markAllAsRead
 } from "../controllers/notification.controller.js";
 
+// Import validators
+import {
+    notificationIdParam
+} from "../validators/notification.validator.js";
+
 const router = express.Router();
 
-// Apply verifyJWT middleware to all notification routes
+// Protect all routes
 router.use(verifyJWT);
 
-// Fetch notifications
+/* ---------------------- Fetch Notifications ---------------------- */
 router.get("/all", getUserNotifications);
 router.get("/unread", getUnreadNotifications);
 
-// Mark notifications as read
-router.patch("/read/:notificationId", markNotificationAsRead);
+/* ---------------------- Mark Notifications ----------------------- */
+router.patch(
+    "/read/:notificationId",
+    validate(notificationIdParam, "params"),
+    markNotificationAsRead
+);
+
 router.patch("/read-all", markAllAsRead);
 
 export default router;
